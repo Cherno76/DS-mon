@@ -27,7 +27,7 @@ jobs:
           BUNDLE="build/DS-mon.app"
           mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
           cp .build/release/DS-mon "$BUNDLE/Contents/MacOS/"
-          cp -R .build/release/DS-mon_DS-mon.bundle "$BUNDLE/"
+          cp -R .build/release/DS-mon_DS-mon.bundle "$BUNDLE/Contents/Resources/"
 
       - name: Generate AppIcon.icns
         run: |
