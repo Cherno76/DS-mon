@@ -15,6 +15,7 @@
   <img src="https://img.shields.io/badge/macOS-15.0+-blue?logo=apple" alt="macOS 15.0+"/>
   <img src="https://img.shields.io/badge/Arch-arm64-brightgreen?logo=apple" alt="Apple Silicon"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License"/>
+  <a href="https://github.com/Cherno76/homebrew-tap"><img src="https://img.shields.io/badge/brew-tap-F5492C?logo=homebrew" alt="Homebrew"/></a>
 </p>
 
 ## 截图
@@ -31,6 +32,7 @@
 - **Keychain 安全存储** — API Key 通过系统钥匙串加密存储，不落盘明文
 - **优雅的弹出面板** — 点击菜单栏图标查看余额、模型、状态详情
 - **直观的错误提示** — 细分 API Key 无效、网络超时、服务器错误等场景
+- **多语言支持** — 自动检测系统语言，设置中可手动切换中文/English
 
 ## 前置条件
 
@@ -40,15 +42,22 @@
 
 ## 安装
 
-### 方式一：下载预编译包
+### 方式一：Homebrew（推荐）
 
-从 [Releases](https://github.com/Cherno76/DS-mon/releases) 下载最新版 `DS-mon.app.zip`，解压后：
+```bash
+brew tap Cherno76/tap
+brew install --cask ds-mon
+```
+
+### 方式二：下载预编译包
+
+从 [Releases](https://github.com/Cherno76/DS-mon/releases) 下载最新版 `DS-mon-v*.zip`，解压后：
 
 1. 将 `DS-mon.app` 拖入 `应用程序` 文件夹
 2. **右键 → 打开**（首次运行需绕过 Gatekeeper）
 3. 点击菜单栏图标 → 设置 → 输入 API Key → 保存
 
-### 方式二：从源码构建
+### 方式三：从源码构建
 
 ```bash
 git clone https://github.com/Cherno76/DS-mon.git
@@ -81,6 +90,7 @@ open .build/release/DS-mon
 | 余额预警阈值 | 低于此值时红色闪烁 | ¥20 |
 | API Key | DeepSeek 平台 API 密钥 | — |
 | 自动刷新间隔 | 余额自动拉取周期 | 60 秒 |
+| 语言 | 界面语言（跟随系统/中文/English） | 跟随系统 |
 
 ## 项目结构
 
@@ -91,9 +101,13 @@ DS-mon/
 │       ├── DSmonApp.swift        # 应用入口 + 状态栏控制器 + 弹出面板 UI
 │       ├── DeepSeekStats.swift    # 数据模型 + 网络请求 + Keychain 管理
 │       ├── ThresholdView.swift   # 设置窗口 UI
+│       ├── Strings.swift          # 多语言字符串管理
 │       ├── dslogo.png            # 菜单栏图标（鲸鱼 + 放大镜）
 │       ├── dslogo1.png           # 应用图标（鲸鱼 + 数据图表）
 │       └── Assets.xcassets/      # Xcode 资源目录
+├── .github/
+│   └── workflows/
+│       └── release.yml           # GitHub Actions 自动构建 + 发布
 ├── build/
 │   └── DS-mon.app/               # 预编译应用包
 ├── Package.swift                 # SPM 构建配置
@@ -111,15 +125,32 @@ DS-mon/
 ## 构建 Release
 
 ```bash
+# Build
 swift build -c release --disable-sandbox
 
-# 手动打包 .app（若自动打包未运行）
+# Package .app
 mkdir -p build/DS-mon.app/Contents/{MacOS,Resources}
 cp .build/release/DS-mon build/DS-mon.app/Contents/MacOS/
 cp -R .build/release/DS-mon_DS-mon.bundle build/DS-mon.app/Contents/Resources/
+
+# Generate icon (requires dslogo1.png)
+mkdir -p /tmp/AppIcon.iconset
+for s in 16 32 128 256 512; do
+  sips -z "$s" "$s" dslogo1.png --out "/tmp/AppIcon.iconset/icon_${s}x${s}.png"
+  sips -z "$((s*2))" "$((s*2))" dslogo1.png --out "/tmp/AppIcon.iconset/icon_${s}x${s}@2x.png"
+done
+iconutil -c icns /tmp/AppIcon.iconset -o build/DS-mon.app/Contents/Resources/AppIcon.icns
+
 cp Info.plist build/DS-mon.app/Contents/
 codesign --force --deep --sign - build/DS-mon.app
 open build/DS-mon.app
+```
+
+Or simply push a tag — the **GitHub Actions workflow** handles everything automatically:
+
+```bash
+git tag v1.0
+git push origin v1.0
 ```
 
 ## 许可证

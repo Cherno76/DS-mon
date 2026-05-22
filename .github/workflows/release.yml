@@ -1,0 +1,98 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Build (release)
+        run: |
+          swift build -c release --disable-sandbox
+
+      - name: Prepare .app bundle
+        run: |
+          BUNDLE="build/DS-mon.app"
+          mkdir -p "$BUNDLE/Contents/MacOS"
+          mkdir -p "$BUNDLE/Contents/Resources"
+          cp .build/release/DS-mon "$BUNDLE/Contents/MacOS/"
+          cp -R .build/release/DS-mon_DS-mon.bundle "$BUNDLE/Contents/Resources/"
+
+      - name: Generate AppIcon.icns
+        run: |
+          ICONSET=/tmp/AppIcon.iconset
+          rm -rf "$ICONSET"
+          mkdir "$ICONSET"
+          for s in 16 32 128 256 512; do
+            sips -z "$s" "$s" dslogo1.png --out "$ICONSET/icon_${s}x${s}.png"
+            ds=$(($s*2))
+            sips -z "$ds" "$ds" dslogo1.png --out "$ICONSET/icon_${s}x${s}@2x.png"
+          done
+          iconutil -c icns "$ICONSET" -o build/DS-mon.app/Contents/Resources/AppIcon.icns
+
+      - name: Generate Info.plist
+        run: |
+          cat > build/DS-mon.app/Contents/Info.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleDevelopmentRegion</key>
+              <string>zh_CN</string>
+              <key>CFBundleExecutable</key>
+              <string>DS-mon</string>
+              <key>CFBundleIconFile</key>
+              <string>AppIcon</string>
+              <key>CFBundleIconName</key>
+              <string>AppIcon</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.cherno.DS-mon</string>
+              <key>CFBundleInfoDictionaryVersion</key>
+              <string>6.0</string>
+              <key>CFBundleName</key>
+              <string>DS-mon</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>${GITHUB_REF_NAME#v}</string>
+              <key>CFBundleVersion</key>
+              <string>${GITHUB_RUN_NUMBER}</string>
+              <key>LSUIElement</key>
+              <true/>
+              <key>LSMinimumSystemVersion</key>
+              <string>15.0</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+              <key>CFBundleSupportedPlatforms</key>
+              <array>
+                  <string>MacOSX</string>
+              </array>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Code sign
+        run: |
+          codesign --force --deep --sign - build/DS-mon.app
+
+      - name: Package as .zip
+        run: |
+          cd build
+          ditto -c -k --keepParent DS-mon.app "DS-mon-${GITHUB_REF_NAME}.zip"
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/DS-mon-*.zip
