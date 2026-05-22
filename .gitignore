@@ -4,3 +4,4 @@ build/
 .DS_Store
 *.png
 !Sources/**/*.png
+!screenshot.png

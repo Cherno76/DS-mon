@@ -17,6 +17,12 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License"/>
 </p>
 
+## 截图
+
+<p align="center">
+  <img src="screenshot.png" width="400" alt="DS-mon 截图" />
+</p>
+
 ## 功能
 
 - **菜单栏余额监控** — 在菜单栏实时显示 DeepSeek 账户余额，一目了然
