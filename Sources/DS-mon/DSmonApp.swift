@@ -42,10 +42,10 @@ class StatusBarController: NSObject {
         }
 
         let host = NSHostingView(rootView: StatsPopoverView(stats: s))
-        host.frame = NSRect(x: 0, y: 0, width: 240, height: 250)
+        host.frame = NSRect(x: 0, y: 0, width: 260, height: 250)
 
         popover = NSPopover()
-        popover?.contentSize = NSSize(width: 240, height: 250)
+        popover?.contentSize = NSSize(width: 260, height: 250)
         popover?.contentViewController = NSViewController()
         popover?.contentViewController?.view = host
         popover?.behavior = .transient
@@ -66,9 +66,9 @@ class StatusBarController: NSObject {
             let view = ThresholdView(stats: s)
             let host = NSHostingController(rootView: view)
             let window = NSWindow(contentViewController: host)
-            window.title = "余额预警"
+            window.title = "设置"
             window.styleMask = [.titled, .closable]
-            window.setContentSize(NSSize(width: 380, height: 310))
+            window.setContentSize(NSSize(width: 440, height: 280))
             window.center()
             settingsWindow = window
         }
@@ -272,7 +272,7 @@ struct StatsPopoverView: View {
     }
 
     private var actionBar: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 4) {
             Text(stats.lastUpdate)
                 .font(.system(size: 10))
                 .foregroundColor(.secondary)
@@ -309,5 +309,6 @@ struct StatsPopoverView: View {
             .cornerRadius(6)
         }
         .buttonStyle(.plain)
+        .fixedSize()
     }
 }

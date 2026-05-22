@@ -26,12 +26,6 @@
 - **优雅的弹出面板** — 点击菜单栏图标查看余额、模型、状态详情
 - **直观的错误提示** — 细分 API Key 无效、网络超时、服务器错误等场景
 
-## 截图
-
-| 弹出面板 | 设置窗口 |
-|:---:|:---:|
-| ![Popover](Sources/DS-mon/dslogo.png) | ![Settings](Sources/DS-mon/dslogo1.png) |
-
 ## 前置条件
 
 - macOS 15 Sequoia 或更高版本
