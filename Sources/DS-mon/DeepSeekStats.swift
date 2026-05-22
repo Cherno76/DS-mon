@@ -10,6 +10,10 @@ final class DeepSeekStats {
     nonisolated(unsafe) private var blinkTimer: Timer?
     nonisolated(unsafe) private var refreshTimer: Timer?
     private(set) var balance: Double = 0
+    private(set) var grantedBalance: Double = 0
+    private(set) var toppedUpBalance: Double = 0
+    private(set) var isAvailable = true
+    private(set) var currency = "CNY"
     private(set) var models: [String] = []
     private(set) var lastUpdate = "-"
     private(set) var isLoading = false
@@ -130,6 +134,18 @@ final class DeepSeekStats {
         String(format: "¥%.2f", balance)
     }
 
+    var grantedText: String {
+        String(format: "赠送 ¥%.2f", grantedBalance)
+    }
+
+    var toppedUpText: String {
+        String(format: "充值 ¥%.2f", toppedUpBalance)
+    }
+
+    var availabilityText: String {
+        isAvailable ? "可用" : "余额不足"
+    }
+
     var modelsText: String {
         models.isEmpty ? "—" : models.prefix(3).joined(separator: "\n")
     }
@@ -179,10 +195,18 @@ final class DeepSeekStats {
                     errorMessage = "查询失败：解析响应数据失败"
                     return
                 }
+                isAvailable = json["is_available"] as? Bool ?? true
                 for info in infos where info["currency"] as? String == "CNY" {
                     if let s = info["total_balance"] as? String {
                         balance = Double(s) ?? 0
                     }
+                    if let s = info["granted_balance"] as? String {
+                        grantedBalance = Double(s) ?? 0
+                    }
+                    if let s = info["topped_up_balance"] as? String {
+                        toppedUpBalance = Double(s) ?? 0
+                    }
+                    currency = info["currency"] as? String ?? "CNY"
                 }
             case 401:
                 errorMessage = "API Key 无效或已过期"

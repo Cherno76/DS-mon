@@ -42,10 +42,10 @@ class StatusBarController: NSObject {
         }
 
         let host = NSHostingView(rootView: StatsPopoverView(stats: s))
-        host.frame = NSRect(x: 0, y: 0, width: 260, height: 250)
+        host.frame = NSRect(x: 0, y: 0, width: 260, height: 280)
 
         popover = NSPopover()
-        popover?.contentSize = NSSize(width: 260, height: 250)
+        popover?.contentSize = NSSize(width: 260, height: 280)
         popover?.contentViewController = NSViewController()
         popover?.contentViewController?.view = host
         popover?.behavior = .transient
@@ -209,28 +209,44 @@ struct StatsPopoverView: View {
     }
 
     private var balanceSection: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 0) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("当前余额")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                HStack(alignment: .firstTextBaseline, spacing: 0) {
-                    Text("¥")
-                        .font(.system(size: 18, weight: .medium))
+        VStack(spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("当前余额")
+                        .font(.system(size: 11))
                         .foregroundColor(.secondary)
-                    Text(stats.balanceText.replacingOccurrences(of: "¥", with: ""))
-                        .font(.system(size: 28, weight: .bold))
-                        .monospacedDigit()
-                        .foregroundColor(balanceColor)
+                    HStack(alignment: .firstTextBaseline, spacing: 0) {
+                        Text("¥")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.secondary)
+                        Text(stats.balanceText.replacingOccurrences(of: "¥", with: ""))
+                            .font(.system(size: 28, weight: .bold))
+                            .monospacedDigit()
+                            .foregroundColor(balanceColor)
+                    }
+                }
+
+                Spacer()
+
+                if stats.isLoading {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                        .frame(width: 20)
                 }
             }
 
-            Spacer()
-
-            if stats.isLoading {
-                ProgressView()
-                    .scaleEffect(0.8)
-                    .frame(width: 20)
+            if stats.grantedBalance > 0 || stats.toppedUpBalance > 0 {
+                HStack(spacing: 16) {
+                    Label(stats.grantedText, systemImage: "gift.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.green)
+                    Label(stats.toppedUpText, systemImage: "creditcard.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.blue)
+                    Spacer()
+                }
+                .padding(.top, 8)
+                .padding(.leading, 2)
             }
         }
         .padding(.horizontal, 14)
@@ -246,6 +262,11 @@ struct StatsPopoverView: View {
         VStack(spacing: 6) {
             infoRow(icon: "bell.fill", iconColor: .orange, label: "预警线", value: String(format: "¥%.0f", stats.threshold), valueColor: .orange)
             infoRow(icon: "cube.2.fill", iconColor: .blue, label: "可用模型", value: stats.modelsText)
+            infoRow(icon: stats.isAvailable ? "checkmark.circle.fill" : "exclamationmark.circle.fill",
+                    iconColor: stats.isAvailable ? .green : .red,
+                    label: "账户状态",
+                    value: stats.availabilityText,
+                    valueColor: stats.isAvailable ? .green : .red)
             if let error = stats.errorMessage {
                 infoRow(icon: "exclamationmark.triangle.fill", iconColor: .orange, label: "错误", value: error, valueColor: .orange)
             }
