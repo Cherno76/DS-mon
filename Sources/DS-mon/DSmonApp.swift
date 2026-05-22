@@ -124,7 +124,7 @@ class StatusBarView: NSView {
     var action: Selector?
 
     private let icon: NSImage? = {
-        guard let url = Bundle.module.url(forResource: "dslogo", withExtension: "png"),
+        guard let url = Bundle.main.url(forResource: "dslogo", withExtension: "png"),
               let image = NSImage(contentsOf: url),
               let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
 

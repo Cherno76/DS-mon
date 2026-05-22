@@ -25,9 +25,14 @@ jobs:
       - name: Prepare .app bundle
         run: |
           BUNDLE="build/DS-mon.app"
-          mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
+          RES="$BUNDLE/Contents/Resources"
+          mkdir -p "$BUNDLE/Contents/MacOS" "$RES"
           cp .build/release/DS-mon "$BUNDLE/Contents/MacOS/"
-          cp -R .build/release/DS-mon_DS-mon.bundle "$BUNDLE/"
+          # Copy SPM resources directly into Contents/Resources (no .bundle wrapper needed)
+          cp .build/release/DS-mon_DS-mon.bundle/dslogo.png "$RES/"
+          cp .build/release/DS-mon_DS-mon.bundle/dslogo1.png "$RES/"
+          mkdir -p "$RES/Assets.xcassets"
+          cp .build/release/DS-mon_DS-mon.bundle/Assets.xcassets/Contents.json "$RES/Assets.xcassets/"
 
       - name: Generate AppIcon.icns
         run: |
@@ -82,7 +87,7 @@ jobs:
           PLIST
 
       - name: Code sign
-        run: codesign --force --deep --sign - build/DS-mon.app
+        run: codesign --force --sign - build/DS-mon.app
 
       - name: Package as .zip
         run: |

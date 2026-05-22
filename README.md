@@ -129,21 +129,31 @@ DS-mon/
 swift build -c release --disable-sandbox
 
 # Package .app
-mkdir -p build/DS-mon.app/Contents/{MacOS,Resources}
-cp .build/release/DS-mon build/DS-mon.app/Contents/MacOS/
-cp -R .build/release/DS-mon_DS-mon.bundle build/DS-mon.app/
+BUNDLE="build/DS-mon.app"
+RES="$BUNDLE/Contents/Resources"
+mkdir -p "$BUNDLE/Contents/MacOS" "$RES"
+cp .build/release/DS-mon "$BUNDLE/Contents/MacOS/"
+# Copy SPM resources directly
+cp .build/release/DS-mon_DS-mon.bundle/dslogo.png "$RES/"
+cp .build/release/DS-mon_DS-mon.bundle/dslogo1.png "$RES/"
+mkdir -p "$RES/Assets.xcassets"
+cp .build/release/DS-mon_DS-mon.bundle/Assets.xcassets/Contents.json "$RES/Assets.xcassets/"
 
-# Generate icon (requires dslogo1.png)
+# Generate icon
 mkdir -p /tmp/AppIcon.iconset
 for s in 16 32 128 256 512; do
   sips -z "$s" "$s" dslogo1.png --out "/tmp/AppIcon.iconset/icon_${s}x${s}.png"
   sips -z "$((s*2))" "$((s*2))" dslogo1.png --out "/tmp/AppIcon.iconset/icon_${s}x${s}@2x.png"
 done
-iconutil -c icns /tmp/AppIcon.iconset -o build/DS-mon.app/Contents/Resources/AppIcon.icns
+iconutil -c icns /tmp/AppIcon.iconset -o "$RES/AppIcon.icns"
 
-cp Info.plist build/DS-mon.app/Contents/
-codesign --force --deep --sign - build/DS-mon.app
-open build/DS-mon.app
+# Generate Info.plist (see CI workflow for content)
+cat > "$BUNDLE/Contents/Info.plist" << 'PLIST'
+...
+PLIST
+
+codesign --force --sign - "$BUNDLE"
+open "$BUNDLE"
 ```
 
 Or simply push a tag — the **GitHub Actions workflow** handles everything automatically:
