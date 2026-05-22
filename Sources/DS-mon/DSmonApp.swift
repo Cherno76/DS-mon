@@ -68,7 +68,7 @@ class StatusBarController: NSObject {
             let view = ThresholdView(stats: s)
             let host = NSHostingController(rootView: view)
             let window = NSWindow(contentViewController: host)
-            window.title = "设置"
+            window.title = Strings.settingsTitle
             window.styleMask = [.titled, .closable]
             window.setContentSize(NSSize(width: 440, height: 280))
             window.center()
@@ -89,9 +89,9 @@ class StatusBarController: NSObject {
         statusView?.update(stats: s)
 
         let statusStr: NSString
-        if s.errorMessage != nil { statusStr = "异常" }
-        else if s.isLowBalance { statusStr = "余额不足" }
-        else { statusStr = "正常" }
+        if s.errorMessage != nil { statusStr = Strings.statusError as NSString }
+        else if s.isLowBalance { statusStr = Strings.statusLowBalance as NSString }
+        else { statusStr = Strings.statusNormal as NSString }
         let textW = statusStr.size(withAttributes: [.font: NSFont.systemFont(ofSize: 10)]).width
         let dotTextW = CGFloat(7 + 4) + textW
         let amtW = (s.balanceText as NSString).size(
@@ -137,9 +137,9 @@ class StatusBarView: NSView {
     }()
     private let iconView = NSImageView()
 
-    // Cached stable state — never shows "查询中..."
+    // Cached stable state — never shows loading state
     private var cachedDotColor: NSColor = .systemGreen
-    private var cachedStatusStr: NSString = "正常"
+    private var cachedStatusStr: NSString = Strings.statusNormal as NSString
     private var cachedAmtStr: NSString = ""
     private var cachedAmtColor: NSColor = .labelColor
     private var breathPhase: Double = 0
@@ -173,15 +173,15 @@ class StatusBarView: NSView {
         if !stats.isLoading {
             if stats.errorMessage != nil {
                 cachedDotColor = .systemOrange
-                cachedStatusStr = "异常"
+                cachedStatusStr = Strings.statusError as NSString
                 breathStep = 0.08
             } else if stats.isLowBalance {
                 cachedDotColor = .systemRed
-                cachedStatusStr = "余额不足"
+                cachedStatusStr = Strings.statusLowBalance as NSString
                 breathStep = 0.14
             } else {
                 cachedDotColor = .systemGreen
-                cachedStatusStr = "正常"
+                cachedStatusStr = Strings.statusNormal as NSString
                 breathStep = 0.04
             }
             cachedAmtColor = stats.isLowBalance ? .systemRed : .labelColor
@@ -300,9 +300,9 @@ struct StatsPopoverView: View {
     }
 
     private var statusText: String {
-        if stats.isLoading { return "查询中..." }
-        if stats.errorMessage != nil { return "异常" }
-        return "正常"
+        if stats.isLoading { return Strings.badgeLoading }
+        if stats.errorMessage != nil { return Strings.badgeError }
+        return Strings.badgeNormal
     }
 
     private var statusBadgeBackground: Color {
@@ -320,7 +320,7 @@ struct StatsPopoverView: View {
                         Circle()
                             .fill(statusDotColor)
                             .frame(width: 7, height: 7)
-                        Text("当前余额")
+                        Text(Strings.currentBalance)
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                     }
@@ -376,15 +376,15 @@ struct StatsPopoverView: View {
 
     private var infoSection: some View {
         VStack(spacing: 6) {
-            infoRow(icon: "bell.fill", iconColor: .orange, label: "预警线", value: String(format: "¥%.0f", stats.threshold), valueColor: .orange)
-            infoRow(icon: "cube.2.fill", iconColor: .blue, label: "可用模型", value: stats.modelsText)
+            infoRow(icon: "bell.fill", iconColor: .orange, label: Strings.thresholdLabel, value: String(format: "¥%.0f", stats.threshold), valueColor: .orange)
+            infoRow(icon: "cube.2.fill", iconColor: .blue, label: Strings.availableModels, value: stats.modelsText)
             infoRow(icon: stats.isAvailable ? "checkmark.circle.fill" : "exclamationmark.circle.fill",
                     iconColor: stats.isAvailable ? .green : .red,
-                    label: "账户状态",
+                    label: Strings.accountStatus,
                     value: stats.availabilityText,
                     valueColor: stats.isAvailable ? .green : .red)
             if let error = stats.errorMessage {
-                infoRow(icon: "exclamationmark.triangle.fill", iconColor: .orange, label: "错误", value: error, valueColor: .orange)
+                infoRow(icon: "exclamationmark.triangle.fill", iconColor: .orange, label: Strings.errorLabel, value: error, valueColor: .orange)
             }
         }
         .padding(.horizontal, 14)
@@ -417,13 +417,13 @@ struct StatsPopoverView: View {
 
             Spacer()
 
-            actionButton(icon: "arrow.clockwise", label: "刷新", color: .blue) {
+            actionButton(icon: "arrow.clockwise", label: Strings.refresh, color: .blue) {
                 stats.refresh()
             }
-            actionButton(icon: "gearshape", label: "设置", color: .secondary) {
+            actionButton(icon: "gearshape", label: Strings.settings, color: .secondary) {
                 StatusBarController.shared.showSettings()
             }
-            actionButton(icon: "power", label: "退出", color: .red) {
+            actionButton(icon: "power", label: Strings.quit, color: .red) {
                 NSApplication.shared.terminate(nil)
             }
         }

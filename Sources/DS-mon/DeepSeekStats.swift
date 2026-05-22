@@ -102,7 +102,7 @@ final class DeepSeekStats {
         ]
         let status = SecItemAdd(addQuery as CFDictionary, nil)
         guard status == errSecSuccess else {
-            errorMessage = "保存 API Key 失败：需在钥匙串弹窗中点击「始终允许」"
+            errorMessage = Strings.keychainSaveFailed
             return false
         }
         apiKey = key
@@ -131,19 +131,19 @@ final class DeepSeekStats {
     // MARK: - 状态
 
     var balanceText: String {
-        String(format: "¥%.2f", balance)
+        String(format: Strings.balanceText, balance)
     }
 
     var grantedText: String {
-        String(format: "赠送 ¥%.2f", grantedBalance)
+        String(format: Strings.grantedText, grantedBalance)
     }
 
     var toppedUpText: String {
-        String(format: "充值 ¥%.2f", toppedUpBalance)
+        String(format: Strings.toppedUpText, toppedUpBalance)
     }
 
     var availabilityText: String {
-        isAvailable ? "可用" : "余额不足"
+        isAvailable ? Strings.available : Strings.insufficient
     }
 
     var modelsText: String {
@@ -161,7 +161,7 @@ final class DeepSeekStats {
 
     func refresh() {
         guard !apiKey.isEmpty else {
-            errorMessage = "未设置 API Key"
+            errorMessage = Strings.noAPIKey
             return
         }
         isLoading = true
@@ -185,14 +185,14 @@ final class DeepSeekStats {
         do {
             let (data, resp) = try await URLSession.shared.data(for: req)
             guard let http = resp as? HTTPURLResponse else {
-                errorMessage = "查询失败：无效的服务器响应"
+                errorMessage = Strings.invalidResponse
                 return
             }
             switch http.statusCode {
             case 200:
                 guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let infos = json["balance_infos"] as? [[String: Any]] else {
-                    errorMessage = "查询失败：解析响应数据失败"
+                    errorMessage = Strings.parseFailed
                     return
                 }
                 isAvailable = json["is_available"] as? Bool ?? true
@@ -209,25 +209,25 @@ final class DeepSeekStats {
                     currency = info["currency"] as? String ?? "CNY"
                 }
             case 401:
-                errorMessage = "API Key 无效或已过期"
+                errorMessage = Strings.keyInvalid
             case 429:
-                errorMessage = "请求过于频繁，请稍后重试"
+                errorMessage = Strings.rateLimited
             case 500...599:
-                errorMessage = "DeepSeek 服务暂时不可用"
+                errorMessage = Strings.serviceDown
             default:
-                errorMessage = "查询失败（HTTP \(http.statusCode)）"
+                errorMessage = Strings.queryFailed(code: http.statusCode)
             }
         } catch let error as URLError {
             switch error.code {
             case .timedOut:
-                errorMessage = "网络连接超时"
+                errorMessage = Strings.timeout
             case .notConnectedToInternet, .networkConnectionLost:
-                errorMessage = "网络连接失败"
+                errorMessage = Strings.noNetwork
             default:
-                errorMessage = "网络错误：\(error.localizedDescription)"
+                errorMessage = Strings.networkError(error.localizedDescription)
             }
         } catch {
-            errorMessage = "网络错误：\(error.localizedDescription)"
+            errorMessage = Strings.networkError(error.localizedDescription)
         }
     }
 

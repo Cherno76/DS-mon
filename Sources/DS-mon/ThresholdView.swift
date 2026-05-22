@@ -25,7 +25,7 @@ struct ThresholdView: View {
             HStack(spacing: 6) {
                 Image(systemName: "bell.badge.fill")
                     .foregroundColor(.orange)
-                Text("余额预警")
+                Text(Strings.balanceAlert)
                     .font(.body).bold()
                 Spacer()
             }
@@ -46,7 +46,7 @@ struct ThresholdView: View {
                         }
                 }
 
-                Text("余额低于此值时菜单栏红色闪烁")
+                Text(Strings.alertHint)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -59,7 +59,7 @@ struct ThresholdView: View {
             HStack(spacing: 6) {
                 Image(systemName: "key.fill")
                     .foregroundColor(.blue)
-                Text("API Key")
+                Text(Strings.apiKeyLabel)
                     .font(.body).bold()
                 Spacer()
             }
@@ -75,7 +75,7 @@ struct ThresholdView: View {
 
                 if !apiKeyInput.isEmpty {
                     Button(action: saveKey) {
-                        Label("保存", systemImage: "checkmark.circle")
+                        Label(Strings.saveButton, systemImage: "checkmark.circle")
                             .font(.caption)
                     }
                     .buttonStyle(.borderedProminent)
@@ -88,7 +88,7 @@ struct ThresholdView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
                         .font(.caption)
-                    Text("已保存，正在刷新...")
+                    Text(Strings.savedHint)
                         .foregroundColor(.green)
                         .font(.caption)
                 }
@@ -100,7 +100,7 @@ struct ThresholdView: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.orange)
                         .font(.caption)
-                    Text("保存失败，请在钥匙串弹窗中点击「始终允许」")
+                    Text(Strings.saveFailedHint)
                         .foregroundColor(.orange)
                         .font(.caption)
                 }
