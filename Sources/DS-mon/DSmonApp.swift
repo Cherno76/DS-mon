@@ -32,14 +32,19 @@ class StatusBarController: NSObject {
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
     private var settingsWindow: NSWindow?
+    private var statusView: StatusBarView?
 
     func setup() {
         guard statusItem == nil, let s = stats else { return }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
-        if let icon = createMenuBarIcon() {
-            statusItem?.button?.image = icon
-        }
+        statusView = StatusBarView(frame: .zero)
+        statusView?.target = self
+        statusView?.action = #selector(togglePopover)
+        statusItem?.view = statusView
+        statusItem?.length = 80
+
+        updateLabel()
 
         let host = NSHostingView(rootView: StatsPopoverView(stats: s))
         host.frame = NSRect(x: 0, y: 0, width: 260, height: 280)
@@ -49,9 +54,6 @@ class StatusBarController: NSObject {
         popover?.contentViewController = NSViewController()
         popover?.contentViewController?.view = host
         popover?.behavior = .transient
-
-        statusItem?.button?.target = self
-        statusItem?.button?.action = #selector(togglePopover)
 
         updateLabel()
         Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
@@ -77,66 +79,155 @@ class StatusBarController: NSObject {
     }
 
     @objc private func togglePopover() {
-        guard let btn = statusItem?.button, let pop = popover else { return }
+        guard let v = statusItem?.view, let pop = popover else { return }
         if pop.isShown { pop.performClose(nil) }
-        else { pop.show(relativeTo: btn.bounds, of: btn, preferredEdge: .minY) }
+        else { pop.show(relativeTo: v.bounds, of: v, preferredEdge: .minY) }
     }
 
     private func updateLabel() {
-        guard let s = stats, let btn = statusItem?.button else { return }
-        let text = s.balanceText
-        let color: NSColor = s.isLowBalance ? (s.blinkOn ? .red : .gray) : .labelColor
-        btn.attributedTitle = NSAttributedString(string: text, attributes: [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular),
-            .foregroundColor: color,
-        ])
+        guard let s = stats else { return }
+        statusView?.update(stats: s)
+
+        let statusStr: NSString
+        if s.errorMessage != nil { statusStr = "异常" }
+        else if s.isLowBalance { statusStr = "余额不足" }
+        else { statusStr = "正常" }
+        let textW = statusStr.size(withAttributes: [.font: NSFont.systemFont(ofSize: 10)]).width
+        let dotTextW = CGFloat(7 + 4) + textW
+        let amtW = (s.balanceText as NSString).size(
+            withAttributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)]
+        ).width
+        let w = CGFloat(2 + 22 + 4) + max(dotTextW, amtW) + 4
+        statusItem?.length = w
+        statusView?.setFrameSize(NSSize(width: w, height: statusView?.frame.height ?? 22))
     }
 
-    private func createMenuBarIcon() -> NSImage? {
+}
+
+// MARK: - 菜单栏自定义视图
+
+@MainActor
+class StatusBarView: NSView {
+    weak var target: AnyObject?
+    var action: Selector?
+
+    private let icon: NSImage? = {
         guard let url = Bundle.module.url(forResource: "dslogo", withExtension: "png"),
               let image = NSImage(contentsOf: url),
               let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
 
-        let width = cgImage.width
-        let height = cgImage.height
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
-
-        guard let context = CGContext(data: nil, width: width, height: height,
-                                      bitsPerComponent: 8, bytesPerRow: width * 4,
-                                      space: colorSpace, bitmapInfo: bitmapInfo) else { return nil }
-
-        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-
-        guard let pixelData = context.data else { return nil }
-        let pixels = pixelData.bindMemory(to: UInt8.self, capacity: width * height * 4)
-
-        for i in 0..<(width * height) {
-            let offset = i * 4
-            let r = pixels[offset]
-            let g = pixels[offset + 1]
-            let b = pixels[offset + 2]
-            let a = pixels[offset + 3]
-
-            let isWhite = r > 220 && g > 220 && b > 220 && a > 200
-
-            if isWhite {
-                pixels[offset] = 0
-                pixels[offset + 1] = 0
-                pixels[offset + 2] = 0
-                pixels[offset + 3] = 0
-            } else {
-                pixels[offset] = 0
-                pixels[offset + 1] = 0
-                pixels[offset + 2] = 0
-                pixels[offset + 3] = 255
-            }
+        let w = cgImage.width, h = cgImage.height
+        let cs = CGColorSpaceCreateDeviceRGB()
+        guard let ctx = CGContext(data: nil, width: w, height: h,
+                                  bitsPerComponent: 8, bytesPerRow: w * 4,
+                                  space: cs, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: w, height: h))
+        guard let px = ctx.data else { return nil }
+        let p = px.bindMemory(to: UInt8.self, capacity: w * h * 4)
+        for i in 0..<(w * h) {
+            let o = i * 4
+            let isW = p[o] > 220 && p[o+1] > 220 && p[o+2] > 220 && p[o+3] > 200
+            if isW { p[o] = 0; p[o+1] = 0; p[o+2] = 0; p[o+3] = 0 }
+            else { p[o] = 0; p[o+1] = 0; p[o+2] = 0; p[o+3] = 255 }
         }
+        guard let n = ctx.makeImage() else { return nil }
+        let ic = NSImage(cgImage: n, size: NSSize(width: 22, height: 22))
+        ic.isTemplate = true
+        return ic
+    }()
 
-        guard let newCGImage = context.makeImage() else { return nil }
-        let icon = NSImage(cgImage: newCGImage, size: NSSize(width: 22, height: 22))
-        icon.isTemplate = true
-        return icon
+    // Cached stable state — never shows "查询中..."
+    private var cachedDotColor: NSColor = .systemGreen
+    private var cachedStatusStr: NSString = "正常"
+    private var cachedAmtStr: NSString = ""
+    private var cachedAmtColor: NSColor = .labelColor
+    private var breathPhase: Double = 0
+    private var breathStep: Double = 0.04
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            guard let self else { return }
+            let t = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+                guard let self else { return }
+                self.breathPhase += self.breathStep
+                if self.breathPhase > .pi * 2 { self.breathPhase -= .pi * 2 }
+                self.display()
+            }
+            RunLoop.current.add(t, forMode: .common)
+        }
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    func update(stats: DeepSeekStats) {
+        // Only update display state when NOT loading — avoids text flicker
+        if !stats.isLoading {
+            if stats.errorMessage != nil {
+                cachedDotColor = .systemOrange
+                cachedStatusStr = "异常"
+                breathStep = 0.08
+            } else if stats.isLowBalance {
+                cachedDotColor = .systemRed
+                cachedStatusStr = "余额不足"
+                breathStep = 0.14
+            } else {
+                cachedDotColor = .systemGreen
+                cachedStatusStr = "正常"
+                breathStep = 0.04
+            }
+            cachedAmtColor = stats.isLowBalance ? .systemRed : .labelColor
+        }
+        cachedAmtStr = stats.balanceText as NSString
+
+        display()
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if let target = target as? NSObject, let action = action {
+            target.perform(action, with: self)
+        }
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let barH = bounds.height
+        guard barH > 0 else { return }
+
+        let iconSize: CGFloat = 22
+        let iconRect = CGRect(x: 2, y: (barH - iconSize) / 2, width: iconSize, height: iconSize)
+        icon?.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1)
+
+        let breathAlpha = CGFloat(0.1 + 0.9 * (sin(breathPhase) * 0.5 + 0.5))
+        let dotColorWithBreath = cachedDotColor.withAlphaComponent(breathAlpha)
+        let amtColor: NSColor = cachedDotColor == .systemRed ? cachedAmtColor.withAlphaComponent(breathAlpha) : cachedAmtColor
+
+        let textFont = NSFont.systemFont(ofSize: 10)
+        let amtFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+
+        let textAttrs: [NSAttributedString.Key: Any] = [.font: textFont, .foregroundColor: NSColor.secondaryLabelColor]
+        let amtAttrs: [NSAttributedString.Key: Any] = [.font: amtFont, .foregroundColor: amtColor]
+
+        let dotSize = CGSize(width: 7, height: 7)
+        let textSize = cachedStatusStr.size(withAttributes: textAttrs)
+        let amtSize = cachedAmtStr.size(withAttributes: amtAttrs)
+
+        let textX = iconRect.maxX + 4
+        let textW = max(dotSize.width + 4 + textSize.width, amtSize.width)
+        let textH = amtSize.height + textSize.height - 2
+        let textY = (barH - textH) / 2
+        let textCX = textX + (textW - (dotSize.width + 4 + textSize.width)) / 2
+
+        let dotRect = CGRect(x: textCX, y: textY + amtSize.height - 2 + (textSize.height - dotSize.height) / 2,
+                            width: dotSize.width, height: dotSize.height)
+        dotColorWithBreath.setFill()
+        NSBezierPath(roundedRect: dotRect, xRadius: dotSize.width / 2, yRadius: dotSize.height / 2).fill()
+
+        cachedStatusStr.draw(at: NSPoint(x: textCX + dotSize.width + 4, y: textY + amtSize.height - 2),
+                       withAttributes: textAttrs)
+
+        cachedAmtStr.draw(at: NSPoint(x: textX + (textW - amtSize.width) / 2, y: textY),
+                    withAttributes: amtAttrs)
     }
 }
 
@@ -211,16 +302,21 @@ struct StatsPopoverView: View {
     private var balanceSection: some View {
         VStack(spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 0) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("当前余额")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(statusDotColor)
+                            .frame(width: 7, height: 7)
+                        Text("当前余额")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
                     HStack(alignment: .firstTextBaseline, spacing: 0) {
                         Text("¥")
-                            .font(.system(size: 18, weight: .medium))
+                            .font(.system(size: 15, weight: .medium))
                             .foregroundColor(.secondary)
                         Text(stats.balanceText.replacingOccurrences(of: "¥", with: ""))
-                            .font(.system(size: 28, weight: .bold))
+                            .font(.system(size: 22, weight: .bold))
                             .monospacedDigit()
                             .foregroundColor(balanceColor)
                     }
@@ -251,6 +347,13 @@ struct StatsPopoverView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
+    }
+
+    private var statusDotColor: Color {
+        if stats.isLoading { return .gray }
+        if stats.errorMessage != nil { return .orange }
+        if stats.isLowBalance { return stats.blinkOn ? .red : .red.opacity(0.4) }
+        return .green
     }
 
     private var balanceColor: Color {
